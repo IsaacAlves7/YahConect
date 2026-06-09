@@ -1,4 +1,4 @@
-# continuous-changing
+# Continuous changing
 Na prática, isso não é só uma ideia filosófica: já virou um “campo invisível” dentro de engenharia de software moderna. O problema é que ele ainda não tem um nome único bem consolidado, mas aparece espalhado em vários conceitos: *Continuous Refactoring*, *Evolutionary Architecture*, *Living Systems*, *Progressive Delivery*, *Strangler Fig Pattern*, *Adaptive Systems* e até partes de *Chaos Engineering*.
 
 A ideia central de “continuous changing” é simples de entender, mas difícil de dominar: o sistema nunca está “finalizado”, ele está sempre em estado de adaptação controlada. Em vez de pensar “vamos mudar o sistema”, você assume que o sistema já está mudando o tempo todo — e o problema vira como garantir que ele possa mudar sem colapsar.
