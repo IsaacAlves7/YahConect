@@ -136,3 +136,22 @@ Exemplo de ranking de participação do grupo.
 |Maria |76       |
 |Pedro |34       |
 
+Agora o webhook do WhatsApp Cloud API e o endpoint genérico de ingestão:Agora o `main.py` e o módulo de ETL (KPIs em Pandas):Agora o script de dados de demonstração (para testar sem depender do WhatsApp API) e o dashboard Streamlit:Agora os `__init__.py` e o README completo:Agora vou testar se o pipeline realmente funciona de ponta a ponta antes de entregar:Funcionou. Vamos testar o ETL/KPIs também:Tudo funcionando ponta a ponta. Agora a documentação (README) e o script de inicialização do banco:**YahConect** está pronto e testado ponta a ponta (rodei o seed de dados, o ETL e a API de verdade no sandbox antes de te entregar).
+
+**Como está organizado:**
+
+- `app/` — FastAPI: modelos (`Group`, `Member`, `Message`, `MessageEvent`), banco (SQLite por padrão, troca pra Postgres só mudando `DATABASE_URL`), e os endpoints
+- `etl/` — `load.py` (extrai do banco pra DataFrame) e `transform.py` (calcula os KPIs: taxa de leitura, tempo médio de leitura, engajamento, ranking, horário de pico)
+- `dashboard/streamlit_app.py` — o dashboard visual
+- `scripts/seed_demo_data.py` — gera 14 dias de dados fake pra você testar sem precisar de credencial nenhuma
+
+**Um ponto que preciso ser direto sobre:** o WhatsApp Cloud API oficial (Meta) — que é a via legítima e que implementei em `app/webhook.py` — não suporta bem **grupos**, só conversas 1:1 de empresa. Pra captar eventos de um grupo de verdade, na prática só dá com uma ponte não-oficial (Node.js + `whatsapp-web.js`/Baileys rodando numa conta), o que carrega risco de bloqueio de número. Por isso desenhei um endpoint genérico (`POST /events/ingest`) agnóstico de origem — o pipeline de dados (banco → ETL → dashboard) é o mesmo não importa se o evento vem do webhook oficial, de uma ponte de grupo, ou até de Telegram/Slack no futuro, como você mencionou pro Fruzzy. Isso está tudo documentado no README com mais detalhe.
+
+Pra rodar agora:
+
+```bash
+pip install -r requirements.txt
+python -m scripts.init_db
+python -m scripts.seed_demo_data
+streamlit run dashboard/streamlit_app.py
+```
