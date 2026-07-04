@@ -1,3 +1,5 @@
+> Versículo chave: "Consagre ao Senhor tudo o que você faz, e os seus planos serão bem-sucedidos." - Provérbios 16:3
+
 Isso é perfeitamente possível e, na verdade, é uma aplicação muito interessante de Engenharia de Dados, Observabilidade e Business Intelligence aplicada a comunidades.
 
 O fluxo seria algo parecido com: 
