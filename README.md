@@ -117,6 +117,8 @@ Pedro
 
 Um ranking de engajamento poderia ser exibido assim:
 
+<img width="768" height="432" alt="Engajamento por membro" src="https://github.com/user-attachments/assets/7906a7c0-67c3-4c3d-8a63-9f4f553a0600" />
+
 O mais interessante é que isso começa a se aproximar de um sistema de People Analytics ou Community Analytics. Você deixa de apenas saber quem está no grupo e passa a medir comportamento, adesão, consumo de informação, participação e impacto das comunicações.
 
 Para um projeto como o Fruzzy, por exemplo, isso poderia ir além do WhatsApp. O mesmo motor poderia coletar eventos de Telegram, Discord, Slack, Teams, E-mail, LMS corporativos, PDFs distribuídos e portais internos, consolidando tudo em uma única plataforma de observabilidade humana, onde os KPIs não monitoram servidores ou aplicações, mas sim o fluxo de conhecimento e comunicação dentro de uma organização. Isso já entra num território bastante próximo de Data Engineering, Analytics Engineering e IA aplicada à análise comportamental.
@@ -125,8 +127,10 @@ Engajamento por membro
 
 Exemplo de ranking de participação do grupo.
 
-membro	pontuacao
-Isaac	95
-João	82
-Maria	76
-Pedro	34
+|membro|pontuacao|
+|------|---------|
+|Isaac |95       |
+|João  |82       |
+|Maria |76       |
+|Pedro |34       |
+
