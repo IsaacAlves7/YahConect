@@ -1,5 +1,163 @@
 > Versículo chave: "Consagre ao Senhor tudo o que você faz, e os seus planos serão bem-sucedidos." - Provérbios 16:3
 
+# 🐑♻️ YahConect
+
+Bot/ETL para coletar eventos de mensagens do WhatsApp (e, futuramente, de outras origens) e transformá-los em KPIs de **engajamento e comunicação** para consumir os dados via API/ dashboards de BI / People Analytics / Community Analytics.
+
+```
+Origem do evento → Normalização → Banco de Dados → ETL (Pandas) → Dashboard (Streamlit)
+```
+
+## 1. Arquitetura
+
+```
+yahconect/
+├── app/
+│   ├── config.py       # variáveis de ambiente
+│   ├── database.py     # engine/sessão SQLAlchemy (SQLite ou Postgres)
+│   ├── models.py       # Group, Member, Message, MessageEvent
+│   ├── schemas.py       # NormalizedEvent (schema único, agnóstico de origem)
+│   ├── repository.py   # upsert de Group/Member/Message + gravação de eventos
+│   └── webhook.py       # endpoints FastAPI (webhook Meta + ingestão genérica)
+├── etl/
+│   ├── load.py          # extração (E): lê o banco e devolve DataFrames
+│   └── transform.py     # transformação (T): cálculo dos KPIs em Pandas
+├── dashboard/
+│   └── streamlit_app.py # dashboard de KPIs
+├── scripts/
+│   ├── init_db.py
+│   └── seed_demo_data.py # gera dados fake para testar sem WhatsApp configurado
+├── main.py               # API FastAPI
+└── requirements.txt
+```
+
+A tabela `message_events` é o coração do sistema: um **event log**, no
+estilo usado em Data Engineering, onde cada linha é um evento atômico
+(quem, o quê, quando). Todos os KPIs são derivados dela.
+
+### ⚠️ Sobre a fonte dos dados do WhatsApp (importante, sem enrolação)
+
+O **WhatsApp Cloud API oficial (Meta)** — implementado aqui em
+`app/webhook.py` — é a via legítima e sustentável para receber eventos de
+mensagens (enviada/entregue/lida, reações, respostas), mas ele foi desenhado
+para **conversas 1:1 iniciadas por uma empresa (WhatsApp Business)**. O
+suporte a **grupos** é limitado/inexistente na API pública da Meta hoje.
+
+Ou seja: para captar eventos de um **grupo de WhatsApp** de verdade (o
+cenário descrito no seu briefing), a única forma prática é uma "ponte" não
+oficial, como um processo separado em Node.js usando `whatsapp-web.js` ou
+`Baileys`, conectado à conta do WhatsApp Web de um administrador do grupo.
+Isso funciona bem tecnicamente, mas **não é um uso oficialmente suportado
+pelo WhatsApp/Meta** — vale avaliar o risco (bloqueio de número) antes de
+usar em produção.
+
+Por isso o projeto foi desenhado com um **endpoint genérico e agnóstico de
+origem** (`POST /events/ingest`), que recebe eventos já normalizados
+(`NormalizedEvent`). Assim, dá pra plugar:
+- o webhook oficial da Meta (1:1 ou futuros grupos oficiais);
+- uma ponte não-oficial de grupos (Node.js + whatsapp-web.js/Baileys) que
+  chama esse endpoint;
+- outras origens completamente diferentes (Telegram, Slack, Discord, e-mail...),
+  exatamente como você comentou no fim do seu briefing sobre o Fruzzy.
+
+O pipeline de dados (banco, ETL, KPIs, dashboard) é **o mesmo, não importa a origem**.
+
+### 📜 Nota sobre LGPD/privacidade
+
+Este sistema coleta dados comportamentais (leitura, tempo de resposta,
+reações) de pessoas reais. Antes de rodar em um grupo real:
+- avise os participantes e obtenha consentimento (LGPD, art. 7º);
+- defina uma política de retenção de dados;
+- restrinja o acesso ao dashboard a quem realmente precisa ver esses KPIs.
+
+## 2. Instalação
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Por padrão o `.env` usa SQLite (`yahconect.db`), sem precisar instalar nada
+além do Python. Para Postgres, troque `DATABASE_URL` no `.env`.
+
+## 3. Testar rapidamente com dados de demonstração
+
+Sem precisar configurar o WhatsApp ainda:
+
+```bash
+python -m scripts.init_db
+python -m scripts.seed_demo_data
+streamlit run dashboard/streamlit_app.py
+```
+
+Isso gera 14 dias de eventos simulados (mensagens, leituras, reações,
+respostas) para 8 membros fictícios e abre o dashboard com os KPIs.
+
+## 4. Rodando a API (para receber eventos de verdade)
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+- `GET  /` → health check
+- `GET  /webhook/whatsapp` → verificação do webhook (usado pela Meta)
+- `POST /webhook/whatsapp` → recebe eventos do WhatsApp Cloud API
+- `POST /events/ingest` → recebe eventos normalizados de qualquer origem
+
+### Configurando o webhook oficial da Meta
+
+1. Crie um app em https://developers.facebook.com/apps → adicione o produto **WhatsApp**.
+2. Em **API Setup**, pegue o `WHATSAPP_ACCESS_TOKEN` e o `WHATSAPP_PHONE_NUMBER_ID` e coloque no `.env`.
+3. Exponha sua API publicamente para testes locais (ex.: `ngrok http 8000`).
+4. Em **Configuration → Webhook**, aponte para `https://SEU_DOMINIO/webhook/whatsapp`,
+   use o mesmo valor de `WHATSAPP_VERIFY_TOKEN` do `.env`, e assine os campos
+   `messages`.
+
+### Enviando um evento manualmente (ex.: de uma ponte de grupo)
+
+```bash
+curl -X POST http://localhost:8000/events/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "whatsapp_bridge",
+    "group_wa_id": "grupo-fruzzy",
+    "group_name": "Comunidade Fruzzy",
+    "member_wa_id": "5521999990000",
+    "member_name": "Isaac",
+    "message_wa_id": "wamid.abc123",
+    "message_type": "text",
+    "content_preview": "Bom dia, pessoal!",
+    "event_type": "sent_by_member",
+    "event_timestamp": "2026-07-04T10:00:00Z"
+  }'
+```
+
+## 5. KPIs calculados (`etl/transform.py`)
+
+| KPI | Fórmula |
+|---|---|
+| Taxa de Leitura | usuários que leram / usuários totais × 100 |
+| Tempo Médio de Leitura | média (timestamp da leitura − timestamp de envio) |
+| Engajamento | (respostas + reações) / mensagens enviadas × 100 |
+| Mensagens/dia | total de mensagens / dias com atividade |
+| Ranking de Engajamento | pontuação ponderada: leitura=1, reação=2, resposta=3, mensagem enviada=2 |
+| Horário de Pico | distribuição de eventos por hora do dia |
+
+Todas as funções recebem o mesmo `DataFrame` de eventos (`etl/load.load_events()`)
+e podem ser chamadas isoladamente, reaproveitadas em notebooks, em outro
+dashboard (Grafana/Superset/Metabase apontando direto pro Postgres) ou em
+relatórios agendados.
+
+## 6. Próximos passos sugeridos
+
+- Job agendado (cron/Airflow) rodando o ETL e salvando snapshots diários dos KPIs.
+- Autenticação no dashboard (Streamlit + senha, ou Superset/Metabase com RBAC).
+- Adapters adicionais em `app/schemas.py`/`app/webhook.py` para Telegram, Slack, Discord.
+- Alertas automáticos (ex.: "engajamento caiu 20% esta semana") via webhook para o próprio WhatsApp/Slack.
+
+
 Isso é perfeitamente possível e, na verdade, é uma aplicação muito interessante de Engenharia de Dados, Observabilidade e Business Intelligence aplicada a comunidades.
 
 O fluxo seria algo parecido com: 
